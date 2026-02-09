@@ -1,13 +1,14 @@
-import hashlib
+import xxhash
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from collections import defaultdict
 
 class HaninHasher:
     def get_fast_hash(self, path):
-        """Hashes only the first 128KB of a file."""
+        "Hashes only the first 128KB of a file."
 
-        hasher = hashlib.sha256()
+        hasher = xxhash.xxh64()
+
         try:
             with open(path, 'rb') as f:
                 chunk = f.read(131072) # 128 KB
@@ -17,11 +18,12 @@ class HaninHasher:
             return None
 
     def get_full_hash(self, path):
-        """Hashes the entire file in chunks."""
-        hasher = hashlib.sha256()
+        "Hashes the entire file in chunks."
+
+        hasher = xxhash.xxh128()
         try:
             with open(path, 'rb') as f:
-                while chunk := f.read(65536):
+                while chunk := f.read(131072):
                     hasher.update(chunk)
             return hasher.hexdigest()
         except OSError:
@@ -63,7 +65,7 @@ class HaninHasher:
             if len(paths) <= 1:
                 continue
             elif len(paths) <= 3:
-                self.hash_dupes[f"fast_{f_hash}"].extend(paths)
+                self.hash_dupes[f"fast_{size}_{f_hash}"].extend(paths)
             else:
                 candidates_fast.append(paths)
 

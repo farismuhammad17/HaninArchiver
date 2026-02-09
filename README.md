@@ -62,15 +62,15 @@ To remove all duplicates is a $O(n^2)$ operation, because you are comparing ever
 If two files have different sizes, they can never be duplicates. This step creates a dictionary of lists that groups all files with the same file size.
 
 > [!NOTE]  
-> The use of SHA-256 as the hashing algorithm does not pose any issue (and can be changed easily in the source code if preferred).
+> All hashing is done with xxHash (and can be changed easily in the source code if preferred).
 
 #### Fast hashing
 
-A hash map is used to quickly check if duplicates exist, but unfortunately, files are big, and hashing the raw data takes time. Thus, this step hashes only the first 128 KB of data. If the first 128 KB of data is different, they are likely not duplicates.
+A hash map (using XXH64)is used to quickly check if duplicates exist, but unfortunately, files are big, and hashing the raw data takes time. Thus, this step hashes only the first 128 KB of data. If the first 128 KB of data is different, they are likely not duplicates.
 
 #### Full hashing
 
-This is the first step that genuinely takes a lot of time to complete, but fortunately, the previous steps have filtered out most of the non-duplicate files. This step hashes the entire binary of a file and stores it. If two files have the same hash, it is most likely they are the same.
+This is the first step that genuinely takes a lot of time to complete, but fortunately, the previous steps have filtered out most of the non-duplicate files. This step hashes (using XXH128) the entire binary of a file and stores it. If two files have the same hash, it is most likely they are the same.
 
 #### Byte-by-Byte checking
 
@@ -92,3 +92,7 @@ Similar to images, videos are also prevalent in the data we're going to be worki
 ### Zipping
 
 Among many compression algorithms, 7zip offers one that can be read directly from outside without needing you to extract it.
+
+---
+
+*Distributed under the MIT License. See [LICENSE](LICENSE) for more information.*
