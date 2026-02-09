@@ -1,28 +1,32 @@
 import tkinter as tk
-
 from PIL import Image, ImageTk, UnidentifiedImageError
 
 class HaninViewer:
     def view_dupes(self):
         for orig, dupe in self.dupes:
-            win1 = tk.Tk()
-            win2 = tk.Toplevel(win1)
-
-            win1.title(orig.name)
-            win2.title(dupe.name)
+            root = tk.Tk()
+            root.title(f"{orig.name} | {dupe.name}")
 
             try:
-                img1 = Image.open(orig)
-                img1tk = ImageTk.PhotoImage(img1)
+                def get_tk_img(path):
+                    img = Image.open(path)
+                    img.thumbnail((600, 600))
+                    return ImageTk.PhotoImage(img)
 
-                img2 = Image.open(dupe)
-                img2tk = ImageTk.PhotoImage(img2)
+                img1tk = get_tk_img(orig)
+                img2tk = get_tk_img(dupe)
 
             except UnidentifiedImageError:
+                root.destroy()
                 continue
 
-            tk.Label(win1, image=img1tk).pack(side="left", padx=10)
-            tk.Label(win2, image=img2tk).pack(side="left", padx=10)
+            lbl1 = tk.Label(root, image=img1tk)
+            lbl1.pack(side="left", padx=10, pady=10)
 
-            win1.images = img1tk, img2tk
-            win1.mainloop()
+            lbl2 = tk.Label(root, image=img2tk)
+            lbl2.pack(side="left", padx=10, pady=10)
+
+            # Keep references so the images don't disappear due to Garbage Collection
+            root.image_refs = [img1tk, img2tk]
+
+            root.mainloop()
