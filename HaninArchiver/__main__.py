@@ -1,10 +1,44 @@
 import sys
+import argparse
 from pathlib import Path
 
 from Hanin import HaninArchiver
 
+CLR_CONVERSION = {
+    'black': 30,
+    'red': 31,
+    'green': 32,
+    'yellow': 33,
+    'blue': 34,
+    'magenta': 35,
+    'cyan': 36,
+    'white': 37
+}
+
+def clr(text: str, colour: str, bg: bool = False):
+    "Formats the text for a specific colour"
+
+    if not colour: return text
+
+    bright = colour.startswith('br')
+    colour = colour.removeprefix('br')
+
+    out = CLR_CONVERSION[colour]
+    out = out + (10 if bg and not bright else 0)
+    out = out + (60 if not bg and bright else 0)
+    out = out + (70 if bg and bright else 0)
+
+    return f"\033[{out}m{text}\033[0m"
+
 def main():
-    root, save_dupes_folder, save_7z_name, is_logging, no_rem_empty_files, no_rem_dupes, no_convert_img, no_convert_vid, no_zip, view_dupes = get_args()
+    if len(sys.argv) > 1 and sys.argv[1].lower() == "docs":
+        docs()
+        return
+
+    arguments = get_args()
+    verify_args(arguments)
+
+    root, save_dupes_folder, save_7z_name, is_logging, no_rem_empty_files, no_rem_dupes, no_convert_img, no_convert_vid, no_zip, view_dupes = arguments
 
     HaninArchiver(root, is_logging=is_logging).archive(
         save_dupes_to=save_dupes_folder,
@@ -18,77 +52,75 @@ def main():
     )
 
 def get_args():
-    args = sys.argv[1:]
+    parser = argparse.ArgumentParser(description="HaninArchiver")
 
-    if args[0].lower() == "docs":
-        docs()
-        quit()
+    parser.add_argument("-dir", required=True, help="Target directory to archive")
 
-    if len(args) < 1:
-        raise AttributeError("Usage: python HaninArchiver <args> | For documentation: python HaninArchiver docs")
+    parser.add_argument("-save-to", default=None, help="Folder to save duplicates")
+    parser.add_argument("-zip", default="hanin_archive.7z", help="Name of the final zip")
 
-    target_dir = args[args.index("-dir") + 1]
-    root = Path(target_dir)
+    parser.add_argument("--no-log", action='store_false', dest='is_logging', help="Disable logging")
+    parser.add_argument("--no-rem-empty-files", action='store_true')
+    parser.add_argument("--no-rem-dupes", action='store_true')
+    parser.add_argument("--no-convert-img", action='store_true')
+    parser.add_argument("--no-convert-vid", action='store_true')
+    parser.add_argument("--no-zip", action='store_true')
+    parser.add_argument("--view-dupes", action='store_true')
 
+    args = parser.parse_args()
+
+    root = Path(args.dir)
     if not root.is_dir():
-        raise NotADirectoryError(f"Error: {target_dir} is not a valid directory.")
+        raise NotADirectoryError(f"Error: {args.dir} is not a valid directory.")
 
-    if "-save-to" in args:
-        save_dupes_folder = args[args.index("-save-to") + 1]
-    else:
-        save_dupes_folder = None
+    return (root, args.save_to, args.zip, args.is_logging,
+            args.no_rem_empty_files, args.no_rem_dupes,
+            args.no_convert_img, args.no_convert_vid,
+            args.no_zip, args.view_dupes)
 
-    if "-zip" in args:
-        save_7z_name = args[args.index("-zip") + 1]
-    else:
-        save_7z_name = "hanin_archive.7z"
+def verify_args(arguments):
+    root, save_dupes_folder, save_7z_name, is_logging, no_rem_empty_files, no_rem_dupes, no_convert_img, no_convert_vid, no_zip, view_dupes = arguments
 
-    is_logging = "--no-log" not in args
-    if not is_logging:
-        args.remove("--no-log")
+    def status(val):
+        return clr("ENABLED", "green") if val else clr("DISABLED", "red")
 
-    no_rem_empty_files = "--no-rem-empty-files" in args
-    if no_rem_empty_files:
-        args.remove("--no-rem-empty-files")
+    print(clr("\n--- Hanin configuration ---", "cyan"))
+    print(f"Folder: {clr(str(root), 'yellow')}")
+    print(f"Duplicates: {clr(save_dupes_folder, 'blue') if save_dupes_folder else clr('Delete Permanently', 'brred')}")
+    print(f"7z file: {clr(save_7z_name, 'yellow')}")
+    print(f"Logging: {status(is_logging)}")
+    print(f"Remove empty files: {status(not no_rem_empty_files)}")
+    print(f"Remove duplicates: {status(not no_rem_dupes)}")
+    print(f"Convert images: {status(not no_convert_img)}")
+    print(f"Convert videos: {status(not no_convert_vid)}")
+    print(f"Zip final archive: {status(not no_zip)}")
+    print(f"GUI Dupe Viewer: {status(view_dupes)}")
+    print(clr("---------------------------", "cyan"))
 
-    no_rem_dupes = "--no-rem-dupes" in args
-    if no_rem_dupes:
-        args.remove("--no-rem-dupes")
-
-    no_convert_img = "--no-convert-img" in args
-    if no_convert_img:
-        args.remove("--no-convert-img")
-
-    no_convert_vid = "--no-convert-vid" in args
-    if no_convert_vid:
-        args.remove("--no-convert-vid")
-
-    no_zip = "--no-zip" in args
-    if no_zip:
-        args.remove("--no-zip")
-
-    view_dupes = "--view-dupes" in args
-    if view_dupes:
-        args.remove("--view-dupes")
-
-    for arg in args:
-        if arg[0] == '-':
-            print(f"Unidentified argument: {arg}")
-
-    return root, save_dupes_folder, save_7z_name, is_logging, no_rem_empty_files, no_rem_dupes, no_convert_img, no_convert_vid, no_zip, view_dupes
+    try:
+        input(f"\nPress {clr('ENTER', 'brgreen')} to start ({clr('CTRL+C', 'red')} to terminate) ")
+    except KeyboardInterrupt:
+        print(clr("\n\nOperation aborted", "yellow"))
+        sys.exit(0)
 
 def docs():
-    print("python HaninArchiver <args>")
+    DOCS = {
+        "-dir": "Directory to archive",
+        "-save-to": "Folder to save duplicates to",
+        "-zip": "Name of the 7z files you want to compress to",
+        "--no-log": "To disable logging everything being done",
+        "--no-rem-empty-files": "Disable removal of empty files",
+        "--no-rem-dupes": "Disable removal of duplicates",
+        "--no-convert-img": "Disable image conversion to .webp",
+        "--no-convert-vid": "Disable video conversion to .mp4",
+        "--no-zip": "Disable compressing to .7z",
+        "--view-dupes": "View each dupe in a window"
+    }
+
+    print(f"{clr('Usage', 'green')}: python HaninArchiver <args>")
     print("Valid args:")
-    print("\t* -dir: Directory to archive")
-    print("\t* -save-to: Folder to save duplicates to")
-    print("\t* -zip: Name of the 7z files you want to compress to")
-    print("\t* - --no-log: To disable logging everything being done")
-    print("\t* - --no-rem-empty-files: Disable removal of empty files")
-    print("\t* - --no-rem-dupes: Disable removal of duplicates")
-    print("\t* - --no-convert-img: Disable image conversion to .webp")
-    print("\t* - --no-convert-vid: Disable video conversion to .mp4")
-    print("\t* - --no-zip: Disable compressing to .7z")
-    print("\t* - --view-dupes: View each dupe in a window")
+
+    for doc_name, doc_desc in DOCS.items():
+        print(f"\t* {clr(doc_name, 'magenta')}: {doc_desc}")
 
 main()
